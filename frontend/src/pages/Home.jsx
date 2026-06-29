@@ -1,94 +1,114 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+
+import Sidebar from "../components/Sidebar";
+import Header from "../components/Header";
+import ChatBox from "../components/ChatBox";
+import InputBox from "../components/InputBox";
+
+import "./Home.css";
 
 export default function Home() {
-  const [message, setMessage] = useState("");
-  const [messages, setMessages] = useState([]);
 
-  async function sendMessage() {
-    if (!message.trim()) return;
+    const [chats, setChats] = useState(() => {
 
-    const userMessage = {
-      role: "user",
-      text: message,
-    };
+        const saved = localStorage.getItem("zol_chats");
 
-    setMessages((prev) => [...prev, userMessage]);
+        return saved
+            ? JSON.parse(saved)
+            : [
+                {
+                    title: "Welcome",
+                    messages: []
+                }
+            ];
 
-    const currentMessage = message;
-    setMessage("");
+    });
 
-    try {
-      const response = await fetch("http://127.0.0.1:8000/chat", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          message: currentMessage,
-        }),
-      });
+    const [currentChat, setCurrentChat] = useState(0);
 
-      const data = await response.json();
+    useEffect(() => {
 
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          text: data.response,
-        },
-      ]);
-    } catch (error) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          text: "❌ Cannot connect to ZOL AI Backend",
-        },
-      ]);
-    }
-  }
+        localStorage.setItem(
+            "zol_chats",
+            JSON.stringify(chats)
+        );
 
-  return (
-    <div className="container">
-      <div className="header">
-        <h1>ZOL AI</h1>
-        <p>Intelligence Without Limits</p>
-      </div>
+    }, [chats]);
 
-      <div className="chat">
+    function newChat() {
 
-        {messages.map((msg, index) => (
-          <div
-            key={index}
-            className={
-              msg.role === "user"
-                ? "message user"
-                : "message ai"
+        setChats(prev => [
+            ...prev,
+            {
+                title: `New Chat ${prev.length}`,
+                messages: []
             }
-          >
-            {msg.text}
-          </div>
-        ))}
+        ]);
 
-      </div>
+        setCurrentChat(chats.length);
 
-      <div className="input-area">
+    }
 
-        <input
-          placeholder="Ask ZOL AI..."
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") sendMessage();
-          }}
-        />
+    function updateMessages(messages) {
 
-        <button onClick={sendMessage}>
-          Send
-        </button>
+        setChats(prev => {
 
-      </div>
+            const copy = [...prev];
 
-    </div>
-  );
+            copy[currentChat].messages = messages;
+
+            if (
+                copy[currentChat].title.startsWith("New Chat") &&
+                messages.length > 0
+            ) {
+                copy[currentChat].title =
+                    messages[0].text.substring(0, 25);
+            }
+
+            return copy;
+
+        });
+
+    }
+
+    return (
+
+        <div className="app">
+
+            <Sidebar
+
+                chats={chats}
+
+                currentChat={currentChat}
+
+                onNewChat={newChat}
+
+                onSelectChat={setCurrentChat}
+
+            />
+
+            <div className="main">
+
+                <Header />
+
+                <ChatBox
+
+                    messages={chats[currentChat]?.messages || []}
+
+                />
+
+                <InputBox
+
+                    messages={chats[currentChat]?.messages || []}
+
+                    setMessages={updateMessages}
+
+                />
+
+            </div>
+
+        </div>
+
+    );
+
 }
